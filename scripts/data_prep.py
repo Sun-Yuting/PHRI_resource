@@ -18,19 +18,21 @@ def main():
         print(file_name)
 
         with open(file, 'r') as f:
-            test_axis = []
+            val_series = []
+            # line string into vals float
             for line in f:
-                # one axis for test
-                axis_val = line.split(',')[2].strip()
-                test_axis.append(round(float(axis_val), 3))
-            
-            # 1. interpolation
-
-            # 2. difference
-            diff_axis = np.diff(test_axis, 1)
-            # print(diff_axis)
-            
-            # 3. LPF
+                vals = line[1:-2].split(',')  # remove '[' and ']/n'
+                vals_oneline = []
+                # string to float, round
+                for val in vals:
+                    val = round(float(val))
+                    vals_oneline.append(val)
+                # append a line
+                val_series.append(vals_oneline)
+            print(val_series)
+            # python list to numpy array
+            val_series = np.asarray(val_series)
+            print(val_series.shape)
 
 
 # ENTRY
