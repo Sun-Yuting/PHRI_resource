@@ -1,0 +1,3 @@
+-- VA data: wav data through svtools
+-- Orgnize all data files.
+-- data preprocess.
