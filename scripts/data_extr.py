@@ -13,9 +13,9 @@ orig_folder = 'exp_res\\raw_motiondata\\free_talk_couples'
 dest_folder = 'exp_res\\processed_motiondata\\free_talk_couples'
 pickle_folder = 'exp_res\\raw_motiondata\\pickles'
 # (joint number, joint param): head yaw, head pitch, body yaw, body pitch
-target_param = [(3,5), (3,4), (20,5), (20,4)]
+target_param = [('head dir', 0), ('head dir', 1), (3,5), (3,4), (20,5), (20,4)]
 param_len = op.mul(2, op.add(len(target_param), 1))
-
+np.set_printoptions(linewidth=400)  # no newline within a record
 
 
 # FUNCTIONS
@@ -32,81 +32,67 @@ def cal_gender(average, entry):
         return 1
 
 def get_values(people_data, raw_values):
-    if 'head dir' in people_data:
-        raw_values.append(float(people_data["head dir"].split(',')[2]))
-        raw_values.append(float(people_data["head dir"].split(',')[1]))
-    else:
-        raw_values.append(0)
-        raw_values.append(0)
-    if '20' in people_data:
-        raw_values.append(people_data["20"][5])
-        raw_values.append(people_data["20"][4])
-    else:
-        raw_values.append(0)
-        raw_values.append(0)
-    raw_values.append(0)  # VAD
-
+    for param in target_param:
+        joint = str(param[0])
+        dimen = int(param[1])
+        if joint in people_data:
+            # head dir
+            if joint == 'head dir':
+                val = float(people_data[joint].split(',')[dimen])
+            # joint
+            else:
+                val = float(people_data[joint][dimen])
+            raw_values.append(val)
+        else:
+            raw_values.append(0)
+    raw_values.append(0)  # TODO VAD data
     return raw_values
 
 # file -> f -> json_frames -> frames -> raw_series
 # name:str -> object:object -> lines:str[] -> object:json[] -> values:float[]
-def main(use_pickle=False, print_info=True, show_plot=True, save_file=True):
-    if use_pickle:
-        files = glob.glob(pickle_folder + '\\*.*')
-    else:
-        files = glob.glob(orig_folder + '\\*.*')
-    
+def main():
+    files = glob.glob(orig_folder + '\\*.*')
     for file in files:
         file_name = file.split('\\')[-1]
-        print(file_name)
+        print('Processing: ' + file_name)
 
+        # read each frame
+        json_frames = []
+        with open(file, 'r') as f:
+            bracket_stack = 0
+            json_frame = []
+            for line in f:
+                line = line.rstrip()
+                if len(line) == 0:
+                    continue
+                # push
+                if line[-1] == '{':
+                    bracket_stack += 1
+                # pop when }
+                elif line[-1] == '}':
+                    bracket_stack -= 1
+                # pop when },
+                elif len(line) >= 2 and line[-2] == '}':
+                    bracket_stack -= 1
+                json_frame.append(line)
+                if bracket_stack == 0:
+                    json_frames.append(json_frame)
+                    json_frame = []
+            del json_frame  # delete this frame, prep for next
+
+        # parse each frame
         frames = []
+        for json_frame in json_frames:
+            frame_str = '\n'.join(json_frame)
+            frames.append(json.loads(frame_str))
+
+        # timestamp frame
         starttime = ''
-        if not use_pickle:
-            # read each frame
-            json_frames = []
-            with open(file, 'r') as f:
-                bracket_stack = 0
-                json_frame = []
-                for line in f:
-                    line = line.rstrip()
-                    if len(line) == 0:
-                        continue
-                    # push
-                    if line[-1] == '{':
-                        bracket_stack += 1
-                    # pop when }
-                    elif line[-1] == '}':
-                        bracket_stack -= 1
-                    # pop when },
-                    elif len(line) >= 2 and line[-2] == '}':
-                        bracket_stack -= 1
-                    json_frame.append(line)
-                    if bracket_stack == 0:
-                        json_frames.append(json_frame)
-                        json_frame = []
-                del json_frame
-
-            # parse each frame
-            for json_frame in json_frames:
-                frame_str = '\n'.join(json_frame)
-                frames.append(json.loads(frame_str))
-
-            # timestamp
-            if 'start time' not in frames[0]:
-                raise ValueError()
-            starttime = float(frames[0]['start time'])
-            starttime = datetime.fromtimestamp(starttime)
-            del frames[0] # del first frame, only meta-info
-
-            # save as pickle
-            with open(pickle_folder + file_name[:-4] + 'pickle', 'wb') as f:
-                pickle.dump(frames, f)
-
-        else:
-            # read pickle
-            with open(file, 'rb') as f:
-                frames = pickle.load(f)
+        if 'start time' not in frames[0]:
+            raise ValueError()
+        starttime = float(frames[0]['start time'])
+        starttime = datetime.fromtimestamp(starttime)
+        del frames[0]  # frames[0] => time info
 
         # get values
         raw_series = []
@@ -125,6 +111,7 @@ def main(use_pickle=False, print_info=True, show_plot=True, save_file=True):
             elif body_count == 2:
                 raw_values = get_values(frame['people'][0], raw_values)
                 raw_values = get_values(frame['people'][1], raw_values)
+                # TODO gender dicision
                 if frame['people'][0]["3"][1] < frame['people'][1]["3"][1]:
                     # change
                     raw_values = raw_values[int(len(raw_values)/2):] \
@@ -133,7 +120,7 @@ def main(use_pickle=False, print_info=True, show_plot=True, save_file=True):
                     # no change
                     pass
             raw_series.append(raw_values)
-        
+
         # check integrity
         average_vals = [0] * param_len
         for n in range(len(raw_series)):
@@ -179,24 +166,16 @@ def main(use_pickle=False, print_info=True, show_plot=True, save_file=True):
         header_loss = f'loss_rate:\t{loss_array}'
         header_end = '-' * 20
         header = '\n'.join([header_top, header_time, header_frames, header_freq, header_span, header_avrg, header_loss, header_end])
-        if print_info:
-            print(header)
-
-        # plotting
-        if show_plot:
-            for joint in raw_series:
-                plt.plot(joint)
-            plt.show()
+        print(header)
 
         # save
-        if save_file:
-            with open(dest_folder + '\\' + file_name, 'w') as f:
-                # print meta-info
-                f.write(header + '\n')
-                for values in raw_series:
-                    f.write(str(values) + '\n')
+        with open(dest_folder + '\\' + file_name, 'w') as f:
+            # print meta-info
+            f.write(header + '\n')
+            for values in raw_series:
+                f.write(str(values) + '\n')
                     
 
 # ENTRY
 if __name__ == '__main__':
-    main(use_pickle=False, show_plot=False)
+    main()
