@@ -9,7 +9,7 @@ import operator as op
 orig_folder = 'exp_res\\processed_motiondata\\free_talk_couples'
 dest_folder = 'exp_res\\processed_motiondata\\free_talk_couples_final'
 val_pattern = r'(-?\d+\.\d*)'
-param_len = 10
+param_len = 14
 
 
 # FUNCTIONS
