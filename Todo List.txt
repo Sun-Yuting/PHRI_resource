@@ -1,3 +1,127 @@
--- VA data: wav data through svtools
--- Orgnize all data files.
--- data preprocess.
+from skmultiflow.core.base_object import BaseObject
+import socket
+
+
+class Socket(BaseObject):
+    """Socket
+
+    Provide a way to initialize and acquire a socket.
+
+    Parameters
+    ----------
+    addr: str (Default='127.0.0.1')
+        The IP address of the destination.
+
+    port: int (Default=20097)
+        The port number for the connection.
+
+    """
+
+    def __init__(self, addr='127.0.0.1', port=20097):
+        self.addr = addr
+        self.port = port
+
+        s = socket.socket()
+        s.bind(addr, port)
+        print(f'Listening to {self.addr}:{self.port}...')
+        s.listen(5)
+        self.sock, _ = s.accept()
+        print('Connected.')
+
+    def get_socket(self):
+        """
+        Return the initialized socket.
+
+        Returns
+        -------
+        socket.socket:
+            the initialized socket.
+        """
+        if not hasattr(self, 'sock') or self.sock is None:
+            raise AttributeError('socket not initialized.')
+        return self.sock
+
+    def get_socket_info(self):
+        """
+        Return the infomation of the socket.
+        Including origin IP, destination IP, port number.
+
+        Returns
+        -------
+        str:
+            information of the socket.
+        """
+        if not hasattr(self, 'sock') or self.sock is None:
+            raise AttributeError('socket not initialized.')
+        info = f'socket @origin:{self.sock.getsockname()}, destination:{self.sock.getpeername()}, port:{self.port}'
+        return info
+
+    def get_class_type(self):
+        return 'socket'
+
+    def get_info(self):
+        return ''
+
+
+
+from skmultiflow.data.base_stream import Stream
+from skmultiflow.utils.socket import Socket
+
+class SocketStream(Stream):
+    
+    def __init__(self, y=None, target_idx=-1, n_targets=1, cat_feature_idx=None, addr='127.0.0.1', port=20097, timeout=-1):
+        super().__init__()
+        self.X = None
+        self.y = y
+        self.cat_features_idx = [] if cat_feature_idx is None else cat_feature_idx
+        self.n_targets = n_targets
+        self.target_idx = target_idx
+        self.addr = addr
+        self.port = port
+        self.timeout = timeout
+
+        self.socket = Socket(addr, port).get_socket()
+
+    def check_connection(self):
+        """
+        Checks if the socket is alive.
+
+        Returns
+        -------
+        Boolean
+            True if the socket is alive.
+        """
+        try:
+            self.socket.sendall('check connection')
+            return True
+        except:
+            return False
+    
+    def prepare_for_use(self):
+        pass
+
+    def restart(self):
+        pass
+
+    def next_sample(self):
+        pass
+
+    def has_more_samples(self):
+        """
+        Checks if stream has more samples.
+
+        Returns
+        -------
+        Boolean
+            True if stream has more samples.
+        """
+        return self.check_connection()
+
+    def n_remaining_samples(self):
+        pass
+
+    def get_data_info(self):
+        pass
+
+    def get_info(self):
+        pass
