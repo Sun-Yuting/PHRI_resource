@@ -2,3 +2,7 @@ c pointers
 
 https://stackoverflow.com/questions/13654138/what-exactly-is-the-difference-between-pass-by-reference-in-c-and-in-c
 https://stackoverflow.com/questions/373419/whats-the-difference-between-passing-by-reference-vs-passing-by-value
+
+
+ML
+https://qiita.com/katsu1110/items/b43a1ace7c8bbf354864
